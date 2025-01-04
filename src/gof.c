@@ -1,4 +1,12 @@
+/*
+TODO:
+Struct with bool alive and Rectangle
+Click on tile
+GOF rules
+*/
 #include "raylib.h"
+#include <stdbool.h>
+#include <stdio.h>
 
 Vector3 cubePosition = {0};
 
@@ -13,12 +21,19 @@ const int WIN_RES[][2] = {
 
 int GRID_SIZE_W;
 int GRID_SIZE_H;
-const float TILE_SIZE = 5.0;
-const float TILE_GAP = 0.5;
+const float TILE_SIZE = 15.0;
+const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1.0
 const Color COLOR_TILE_ALIVE = GREEN;
+const Color COLOR_TILE_DEAD = RED;
+
+typedef struct cell {
+    bool alive; // status
+    Rectangle tile; // visual
+} cell;
 
 // FUNCTIONS
-void draw_grid(Rectangle (*grid)[GRID_SIZE_W]);
+void draw_grid(cell (*cells)[GRID_SIZE_W]);
+void check_cells_status(cell (*cells)[GRID_SIZE_W]);
 
 int main()
 {
@@ -33,15 +48,16 @@ int main()
     GRID_SIZE_W = WIN_W / (TILE_SIZE + TILE_GAP);
     GRID_SIZE_H = WIN_H / (TILE_SIZE + TILE_GAP);
 
-    Rectangle tiles[GRID_SIZE_H][GRID_SIZE_W];
+    cell cells[GRID_SIZE_H][GRID_SIZE_W];
     float pos_x = 0;
     float pos_y = 0;
     for (int i = 0; i < GRID_SIZE_H; i++, pos_y += TILE_SIZE + TILE_GAP) {
         for (int y = 0; y < GRID_SIZE_W; y++, pos_x += TILE_SIZE + TILE_GAP) {
-            tiles[i][y].x      = pos_x;
-            tiles[i][y].y      = pos_y;
-            tiles[i][y].height = TILE_SIZE;
-            tiles[i][y].width  = TILE_SIZE;
+            cells[i][y].alive       = false;
+            cells[i][y].tile.x      = pos_x;
+            cells[i][y].tile.y      = pos_y;
+            cells[i][y].tile.height = TILE_SIZE;
+            cells[i][y].tile.width  = TILE_SIZE;
         }
         pos_x = 0.0;
     }
@@ -51,10 +67,14 @@ int main()
     BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        draw_grid(tiles);
+        draw_grid(cells);
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            check_cells_status(cells);
+        }
         DrawGrid(10, 1.0f);
 
-        DrawFPS(10, 10);
+        // DrawFPS(10, 10);
+        // printf("%lf:%lf\n", GetMousePosition().x, GetMousePosition().y);        // DEBUG
 
     EndDrawing();
     }
@@ -64,10 +84,22 @@ int main()
 }
 
 // FUNCTION DEFENITIONS
-void draw_grid(Rectangle (*grid)[GRID_SIZE_W]) {
+void draw_grid(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
-            DrawRectangleRec(grid[i][y], COLOR_TILE_ALIVE);
+            Color clr = (cells[i][y].alive) ? COLOR_TILE_ALIVE : COLOR_TILE_DEAD;
+            DrawRectangleRec(cells[i][y].tile, clr);
+        }
+    }
+}
+
+void check_cells_status(cell (*cells)[GRID_SIZE_W]) {
+    for (int i = 0; i < GRID_SIZE_H; i++) {
+        for (int y = 0; y < GRID_SIZE_W; y++) {
+            bool tile_clicked = CheckCollisionPointRec(GetMousePosition(), cells[i][y].tile);
+            if (tile_clicked) {
+                cells[i][y].alive = !cells[i][y].alive;
+            }
         }
     }
 }
