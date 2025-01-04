@@ -1,9 +1,3 @@
-/*
-TODO:
-Struct with bool alive and Rectangle
-Click on tile
-GOF rules
-*/
 #include "raylib.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -23,20 +17,25 @@ int GRID_SIZE_W;
 int GRID_SIZE_H;
 const float TILE_SIZE = 15.0;
 const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1.0
-const Color COLOR_TILE_ALIVE = GREEN;
-const Color COLOR_TILE_DEAD = RED;
+const Color COLOR_TILE_ALIVE = WHITE;
+const Color COLOR_TILE_DEAD = BLACK;
+const Color COLOR_BG = BLACK;
+const double GOF_DELAY = 0.2; // sec
+
+bool gof_is_running = true;
 
 typedef struct cell {
     bool alive; // status
     Rectangle tile; // visual
 } cell;
 
+
 // FUNCTIONS
 void draw_grid(cell (*cells)[GRID_SIZE_W]);
-void check_cells_status(cell (*cells)[GRID_SIZE_W]);
+void cell_make_alive(cell (*cells)[GRID_SIZE_W]);
+void process_gof(cell (*cells)[GRID_SIZE_W]);
 
-int main()
-{
+int main() {
     // Create the window --------------------------------------------------
     const int WIN_W = WIN_RES[2][0]; // Changes window resolution
     const int WIN_H = WIN_RES[2][1];
@@ -65,13 +64,23 @@ int main()
     // Main Loop ---------------------------------------------------------
     while (!WindowShouldClose()) {
     BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(COLOR_BG);
 
         draw_grid(cells);
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            check_cells_status(cells);
+            gof_is_running = false;
+            cell_make_alive(cells);
+        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            gof_is_running = true;
         }
-        DrawGrid(10, 1.0f);
+        
+        // Pause the life process while "drawing" cells
+        if (gof_is_running) {
+            process_gof(cells);
+            WaitTime(GOF_DELAY);
+        }
+
+        // DrawGrid(10, 1.0f);
 
         // DrawFPS(10, 10);
         // printf("%lf:%lf\n", GetMousePosition().x, GetMousePosition().y);        // DEBUG
@@ -93,12 +102,47 @@ void draw_grid(cell (*cells)[GRID_SIZE_W]) {
     }
 }
 
-void check_cells_status(cell (*cells)[GRID_SIZE_W]) {
+void cell_make_alive(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
             bool tile_clicked = CheckCollisionPointRec(GetMousePosition(), cells[i][y].tile);
             if (tile_clicked) {
-                cells[i][y].alive = !cells[i][y].alive;
+                cells[i][y].alive = true;
+            }
+        }
+    }
+}
+
+void process_gof(cell (*cells)[GRID_SIZE_W]) {
+    for (int i = 0; i < GRID_SIZE_H; i++) {
+        for (int y = 0; y < GRID_SIZE_W; y++) {
+            // Rule 1 -------------------------
+            // (Any live cell with fewer than two live (< 2) neighbours dies as if caused by underpopulation.)
+
+            // Checking for neighbors 
+            int neighbors = 0;
+
+            int iy = i - 1;
+            int ix = y - 1;
+            for (int row = 0; row < 3; row++, iy++, ix = y - 1) {
+                for (int col = 0; col < 3; col++, ix++) {
+                    if (cells[iy][ix].alive &&
+                        iy >= 0 && iy < GRID_SIZE_H &&
+                        ix >= 0 && ix < GRID_SIZE_W &&
+                        (iy != i || ix != y)) {
+                        neighbors++;
+                    }
+                }
+            }
+
+            // Kill the cell
+            if (neighbors != 2 || neighbors != 3) {
+                cells[i][y].alive = false;
+            }
+            
+            // Make alive
+            if (neighbors == 3) {
+                cells[i][y].alive = true;
             }
         }
     }
