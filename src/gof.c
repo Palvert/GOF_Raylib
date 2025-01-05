@@ -20,12 +20,16 @@ const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1
 const Color COLOR_TILE_ALIVE = WHITE;
 const Color COLOR_TILE_DEAD = BLACK;
 const Color COLOR_BG = BLACK;
-const double GOF_DELAY = 0.2; // sec
+const double GOF_DELAY = 0.1; // sec
 
 bool gof_is_running = true;
+int generation = 0;
+int population = 0;
 
 typedef struct cell {
     bool alive; // status
+    bool will_survive;
+    bool will_be_born;
     Rectangle tile; // visual
 } cell;
 
@@ -33,7 +37,8 @@ typedef struct cell {
 // FUNCTIONS
 void draw_grid(cell (*cells)[GRID_SIZE_W]);
 void cell_make_alive(cell (*cells)[GRID_SIZE_W]);
-void process_gof(cell (*cells)[GRID_SIZE_W]);
+void analyze_cells(cell (*cells)[GRID_SIZE_W]);
+void start_next_generation(cell (*cells)[GRID_SIZE_W]);
 
 int main() {
     // Create the window --------------------------------------------------
@@ -52,11 +57,13 @@ int main() {
     float pos_y = 0;
     for (int i = 0; i < GRID_SIZE_H; i++, pos_y += TILE_SIZE + TILE_GAP) {
         for (int y = 0; y < GRID_SIZE_W; y++, pos_x += TILE_SIZE + TILE_GAP) {
-            cells[i][y].alive       = false;
-            cells[i][y].tile.x      = pos_x;
-            cells[i][y].tile.y      = pos_y;
-            cells[i][y].tile.height = TILE_SIZE;
-            cells[i][y].tile.width  = TILE_SIZE;
+            cells[i][y].alive        = false;
+            cells[i][y].will_survive = false;
+            cells[i][y].will_be_born    = false;
+            cells[i][y].tile.x       = pos_x;
+            cells[i][y].tile.y       = pos_y;
+            cells[i][y].tile.height  = TILE_SIZE;
+            cells[i][y].tile.width   = TILE_SIZE;
         }
         pos_x = 0.0;
     }
@@ -76,7 +83,8 @@ int main() {
         
         // Pause the life process while "drawing" cells
         if (gof_is_running) {
-            process_gof(cells);
+            analyze_cells(cells);
+            start_next_generation(cells);
             WaitTime(GOF_DELAY);
         }
 
@@ -113,13 +121,13 @@ void cell_make_alive(cell (*cells)[GRID_SIZE_W]) {
     }
 }
 
-void process_gof(cell (*cells)[GRID_SIZE_W]) {
+void analyze_cells(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
             // Rule 1 -------------------------
             // (Any live cell with fewer than two live (< 2) neighbours dies as if caused by underpopulation.)
 
-            // Checking for neighbors 
+            // Scan 8 closest neghibors
             int neighbors = 0;
 
             int iy = i - 1;
@@ -136,14 +144,27 @@ void process_gof(cell (*cells)[GRID_SIZE_W]) {
             }
 
             // Kill the cell
-            if (neighbors != 2 || neighbors != 3) {
-                cells[i][y].alive = false;
-            }
+            if (neighbors == 2 || neighbors == 3) {
+                cells[i][y].will_survive = true;
+            } else {cells[i][y].will_survive = false;}
             
             // Make alive
             if (neighbors == 3) {
-                cells[i][y].alive = true;
+                cells[i][y].will_be_born = true;
+            } else {cells[i][y].will_be_born = false;}
+        }
+    }
+}
+
+void start_next_generation(cell (*cells)[GRID_SIZE_W]) {
+    for (int i = 0; i < GRID_SIZE_H; i++) {
+        for (int y = 0; y < GRID_SIZE_W; y++) {
+            if (cells[i][y].alive) {
+                cells[i][y].alive = cells[i][y].will_survive;
+            } else {
+                cells[i][y].alive = cells[i][y].will_be_born;
             }
+            // cells[i][y].alive = cells[i][y].will_survive;
         }
     }
 }
