@@ -21,7 +21,7 @@ const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1
 const Color COLOR_TILE_ALIVE = WHITE;
 const Color COLOR_TILE_DEAD = BLACK;
 const Color COLOR_BG = BLACK;
-const double GOF_DELAY = 0.05; // sec
+const double GOF_DELAY = 0.10; // sec
 const float CAM_SPEED = 10.0f;
 
 bool gof_is_running = true;
