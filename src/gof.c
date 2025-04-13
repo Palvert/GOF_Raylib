@@ -1,6 +1,7 @@
-#include "raylib.h"
+#include "./raylib/include/raylib.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 
 Vector3 cubePosition = {0};
 
@@ -20,7 +21,8 @@ const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1
 const Color COLOR_TILE_ALIVE = WHITE;
 const Color COLOR_TILE_DEAD = BLACK;
 const Color COLOR_BG = BLACK;
-const double GOF_DELAY = 0.1; // sec
+const double GOF_DELAY = 0.05; // sec
+const float CAM_SPEED = 10.0f;
 
 bool gof_is_running = true;
 int generation = 0;
@@ -34,17 +36,21 @@ typedef struct cell {
 } cell;
 
 
-// FUNCTIONS
+// FUNCTION PROTOTYPES
+// --------------------------------------------------------------------------------
 void draw_grid(cell (*cells)[GRID_SIZE_W]);
-void cell_make_alive(cell (*cells)[GRID_SIZE_W]);
+void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera);
 void analyze_cells(cell (*cells)[GRID_SIZE_W]);
 void start_next_generation(cell (*cells)[GRID_SIZE_W]);
 
 int main() {
     // Create the window --------------------------------------------------
-    const int WIN_W = WIN_RES[2][0]; // Changes window resolution
+    
+        // Set resolution
+    const int WIN_W = WIN_RES[2][0];
     const int WIN_H = WIN_RES[2][1];
 
+        // Initialize
     InitWindow(WIN_W, WIN_H, "Game of Life");
     SetTargetFPS(60);
 
@@ -59,7 +65,7 @@ int main() {
         for (int y = 0; y < GRID_SIZE_W; y++, pos_x += TILE_SIZE + TILE_GAP) {
             cells[i][y].alive        = false;
             cells[i][y].will_survive = false;
-            cells[i][y].will_be_born    = false;
+            cells[i][y].will_be_born = false;
             cells[i][y].tile.x       = pos_x;
             cells[i][y].tile.y       = pos_y;
             cells[i][y].tile.height  = TILE_SIZE;
@@ -68,30 +74,76 @@ int main() {
         pos_x = 0.0;
     }
 
-    // Main Loop ---------------------------------------------------------
+        // Camera 2D
+    Camera2D camera = {0};
+    // camera.target   = (Vector2){0.0f, 0.0f};
+    camera.offset   = (Vector2){WIN_W / 2.0f, WIN_H / 2.0f};
+    // camera.rotation = 0.0f;
+    camera.zoom     = 1.0f;
+
+    // Main Loop -----------------------------------------------------
     while (!WindowShouldClose()) {
     BeginDrawing();
         ClearBackground(COLOR_BG);
 
-        draw_grid(cells);
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            gof_is_running = false;
-            cell_make_alive(cells);
-        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-            gof_is_running = true;
+        BeginMode2D(camera);
+
+            draw_grid(cells);
+            
+            // Pause the life process while "drawing" cells
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                gof_is_running = false;
+                cell_make_alive(cells, &camera);
+            } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                gof_is_running = true;
+            }
+            
+            if (gof_is_running) {
+                analyze_cells(cells);
+                start_next_generation(cells);
+                WaitTime(GOF_DELAY);
+            }
+            
+            // DrawGrid(10, 1.0f); // TODO: doesn't work properly, fix
+
+        EndMode2D();
+
+        DrawFPS(10, 10);
+        // printf("%lf:%lf\n", GetMousePosition().x, GetMousePosition().y);        // DEBUG
+
+        // Camera controls -----------------------------------------------------
+        
+            // Camera rotation
+        // if (IsKeyDown(KEY_Q)) camera.rotation--;
+        // else if (IsKeyDown(KEY_E)) camera.rotation++;
+        
+            // Camera movement
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+            Vector2 local_mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
+
+            // Y Axis
+            if (local_mouse_pos.y < camera.target.y) {
+                     camera.target.y -= fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED;
+            } else { camera.target.y += fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED; }
+            
+            // X Axis
+            if (local_mouse_pos.x < camera.target.x) {
+                     camera.target.x -= fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED;
+            } else { camera.target.x += fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED; }
+
         }
         
-        // Pause the life process while "drawing" cells
-        if (gof_is_running) {
-            analyze_cells(cells);
-            start_next_generation(cells);
-            WaitTime(GOF_DELAY);
+            // Camera zoom
+        camera.zoom = expf(logf(camera.zoom) + ((float)GetMouseWheelMove() * 0.1f));
+        
+            // Reset camera
+        if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE))
+        {
+            camera.target = (Vector2){0.0f, 0.0f};
+            // camera.zoom = 1.0f;
+            camera.rotation = 0.0f;
         }
-
-        // DrawGrid(10, 1.0f);
-
-        // DrawFPS(10, 10);
-        // printf("%lf:%lf\n", GetMousePosition().x, GetMousePosition().y);        // DEBUG
+        // ---------------------------------------------------------------------
 
     EndDrawing();
     }
@@ -101,19 +153,21 @@ int main() {
 }
 
 // FUNCTION DEFENITIONS
+// --------------------------------------------------------------------------------
 void draw_grid(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
-            Color clr = (cells[i][y].alive) ? COLOR_TILE_ALIVE : COLOR_TILE_DEAD;
-            DrawRectangleRec(cells[i][y].tile, clr);
+            Color color = (cells[i][y].alive) ? COLOR_TILE_ALIVE : COLOR_TILE_DEAD;
+            DrawRectangleRec(cells[i][y].tile, color);
         }
     }
 }
 
-void cell_make_alive(cell (*cells)[GRID_SIZE_W]) {
+void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
-            bool tile_clicked = CheckCollisionPointRec(GetMousePosition(), cells[i][y].tile);
+            Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
+            bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
             if (tile_clicked) {
                 cells[i][y].alive = true;
             }
