@@ -14,15 +14,22 @@ const int WIN_RES[][2] = {
     {320, 240}
 };
 
+// Color palette
+const Color CLR_WHITE = (Color) { 220, 220, 220, 255 };
+const Color CLR_BLACK = (Color) { 10, 10, 10, 255 };
+
 int GRID_SIZE_W;
 int GRID_SIZE_H;
-const float TILE_SIZE = 15.0;
-const float TILE_GAP = 1.0; // For some reason it doesn't work properly with < 1.0
-const Color COLOR_TILE_ALIVE = WHITE;
-const Color COLOR_TILE_DEAD = BLACK;
-const Color COLOR_BG = BLACK;
-const double GOF_DELAY = 0.10; // sec
-const float CAM_SPEED = 10.0f;
+const Color             COLOR_BG           = CLR_BLACK;
+const Color             COLOR_TILE_ALIVE   = WHITE;
+const Color             COLOR_TILE_DEAD    = COLOR_BG;
+const float             CAM_MAX_ZOOM       = 3.15f;
+const float             CAM_MIN_ZOOM       = 0.15f;
+const float             CAM_SPEED          = 10.0f;
+const float             TILE_GAP           = 1.0; // For some reason it doesn't work properly with < 1.0
+const float             TILE_SIZE          = 15.0;
+const int               SPEED_REDUCT_RATE  = 6;
+const unsigned short    FPS                = 60;
 
 bool gof_is_running = true;
 int generation = 0;
@@ -42,8 +49,11 @@ void draw_grid(cell (*cells)[GRID_SIZE_W]);
 void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera);
 void analyze_cells(cell (*cells)[GRID_SIZE_W]);
 void start_next_generation(cell (*cells)[GRID_SIZE_W]);
+bool fps_filter(unsigned short *fps_counter);
 
 int main() {
+    unsigned short fps_counter = 0;
+
     // Create the window --------------------------------------------------
     
         // Set resolution
@@ -52,7 +62,7 @@ int main() {
 
         // Initialize
     InitWindow(WIN_W, WIN_H, "Game of Life");
-    SetTargetFPS(60);
+    SetTargetFPS(FPS);
 
     // Create the grid ----------------------------------------------------
     GRID_SIZE_W = WIN_W / (TILE_SIZE + TILE_GAP);
@@ -87,7 +97,6 @@ int main() {
         ClearBackground(COLOR_BG);
 
         BeginMode2D(camera);
-
             draw_grid(cells);
             
             // Pause the life process while "drawing" cells
@@ -98,18 +107,15 @@ int main() {
                 gof_is_running = true;
             }
             
-            if (gof_is_running) {
+            if (gof_is_running && fps_filter(&fps_counter)) {
                 analyze_cells(cells);
                 start_next_generation(cells);
-                WaitTime(GOF_DELAY);
             }
             
-            // DrawGrid(10, 1.0f); // TODO: doesn't work properly, fix
 
         EndMode2D();
 
         DrawFPS(10, 10);
-        // printf("%lf:%lf\n", GetMousePosition().x, GetMousePosition().y);        // DEBUG
 
         // Camera controls -----------------------------------------------------
         
@@ -143,6 +149,10 @@ int main() {
             // camera.zoom = 1.0f;
             camera.rotation = 0.0f;
         }
+
+            // Limit zoom
+        if (camera.zoom < 0.15) { camera.zoom = CAM_MIN_ZOOM; }
+        if (camera.zoom > 3.00) { camera.zoom = CAM_MAX_ZOOM; }
         // ---------------------------------------------------------------------
 
     EndDrawing();
@@ -178,9 +188,6 @@ void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera) {
 void analyze_cells(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
-            // Rule 1 -------------------------
-            // (Any live cell with fewer than two live (< 2) neighbours dies as if caused by underpopulation.)
-
             // Scan 8 closest neghibors
             int neighbors = 0;
 
@@ -221,4 +228,11 @@ void start_next_generation(cell (*cells)[GRID_SIZE_W]) {
             // cells[i][y].alive = cells[i][y].will_survive;
         }
     }
+}
+
+bool fps_filter(unsigned short *fps_counter) {
+    (*fps_counter)++;
+    if (*fps_counter >= FPS) { *fps_counter = 0; }
+    if (*fps_counter % SPEED_REDUCT_RATE == 0) { return true; }
+    return false;
 }
