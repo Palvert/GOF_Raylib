@@ -86,8 +86,8 @@ int main() {
 
         // Camera 2D
     Camera2D camera = {0};
-    // camera.target   = (Vector2){0.0f, 0.0f};
-    camera.offset   = (Vector2){WIN_W / 2.0f, WIN_H / 2.0f};
+    camera.target   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
+    camera.offset   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
     // camera.rotation = 0.0f;
     camera.zoom     = 1.0f;
 
