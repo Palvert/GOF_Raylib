@@ -15,21 +15,26 @@ const int WIN_RES[][2] = {
 };
 
 // Color palette
-const Color CLR_WHITE = (Color) { 220, 220, 220, 255 };
-const Color CLR_BLACK = (Color) { 10, 10, 10, 255 };
+const Color CLR_WHITE   = (Color) { 220, 220, 220, 255 };
+const Color CLR_BLACK   = (Color) { 10, 10, 10, 255 };
+const Color CLR_MIDGRAY = (Color) { 127, 127, 127, 255 };
 
+// Constants
 int GRID_SIZE_W;
 int GRID_SIZE_H;
 const Color             COLOR_BG           = CLR_BLACK;
 const Color             COLOR_TILE_ALIVE   = WHITE;
 const Color             COLOR_TILE_DEAD    = COLOR_BG;
+const Color             COLOR_TEXT         = CLR_MIDGRAY;
 const float             CAM_MAX_ZOOM       = 3.15f;
 const float             CAM_MIN_ZOOM       = 0.15f;
 const float             CAM_SPEED          = 10.0f;
 const float             TILE_GAP           = 1.0; // For some reason it doesn't work properly with < 1.0
 const float             TILE_SIZE          = 15.0;
-const int               SPEED_REDUCT_RATE  = 6;
 const unsigned short    FPS                = 60;
+
+// Variables
+unsigned short          speed_reduct_rate  = 6;
 
 bool gof_is_running = true;
 int generation = 0;
@@ -115,6 +120,10 @@ int main() {
 
         EndMode2D();
 
+        // Draw UI -----------------------------------------------------
+        char str_speed[15];
+        sprintf(str_speed, "Speed: %.2f%%", (100.0 / speed_reduct_rate));
+        DrawText(str_speed, 10, 35, 20, LIME);
         DrawFPS(10, 10);
 
         // Camera controls -----------------------------------------------------
@@ -154,6 +163,10 @@ int main() {
         if (camera.zoom < 0.15) { camera.zoom = CAM_MIN_ZOOM; }
         if (camera.zoom > 3.00) { camera.zoom = CAM_MAX_ZOOM; }
         // ---------------------------------------------------------------------
+        
+        // Game speed controls
+        if      (IsKeyPressed(KEY_MINUS)) { speed_reduct_rate++; }
+        else if (IsKeyPressed(KEY_EQUAL)) { speed_reduct_rate--; }
 
     EndDrawing();
     }
@@ -233,6 +246,6 @@ void start_next_generation(cell (*cells)[GRID_SIZE_W]) {
 bool fps_filter(unsigned short *fps_counter) {
     (*fps_counter)++;
     if (*fps_counter >= FPS) { *fps_counter = 0; }
-    if (*fps_counter % SPEED_REDUCT_RATE == 0) { return true; }
+    if (*fps_counter % speed_reduct_rate == 0) { return true; }
     return false;
 }
