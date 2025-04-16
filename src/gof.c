@@ -36,7 +36,8 @@ const unsigned short    FPS                = 60;
 // Variables
 unsigned short          speed_reduct_rate  = 6;
 
-bool gof_is_running = true;
+bool gof_on_hold = false;
+bool gof_paused = false;
 int generation = 0;
 int population = 0;
 
@@ -103,16 +104,22 @@ int main() {
 
         BeginMode2D(camera);
             draw_grid(cells);
+
+            // Manual Pause
+            if (IsKeyPressed(KEY_P)) {
+                gof_paused = !gof_paused; 
+                gof_on_hold = gof_paused;
+            }
             
             // Pause the life process while "drawing" cells
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                gof_is_running = false;
+                gof_on_hold = true;
                 cell_make_alive(cells, &camera);
             } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                gof_is_running = true;
+                gof_on_hold = false;
             }
             
-            if (gof_is_running && fps_filter(&fps_counter)) {
+            if ((!gof_on_hold && !gof_paused) && fps_filter(&fps_counter)) {
                 analyze_cells(cells);
                 start_next_generation(cells);
             }
@@ -121,9 +128,15 @@ int main() {
         EndMode2D();
 
         // Draw UI -----------------------------------------------------
+            // Text Speed
         char str_speed[15];
         sprintf(str_speed, "Speed: %.2f%%", (100.0 / speed_reduct_rate));
         DrawText(str_speed, 10, 35, 20, LIME);
+            // Text Pause
+        if (gof_paused) {
+            DrawText("Paused", (WIN_W / 2 - 40), 10, 20, MAROON);
+        }
+
         DrawFPS(10, 10);
 
         // Camera controls -----------------------------------------------------

@@ -10,3 +10,4 @@ RMB - Move camera
 MMB - Reset camera position  
 ⌨️  
 -/= - Speed control  
+ P  - Pause
