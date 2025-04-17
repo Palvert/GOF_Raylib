@@ -1,4 +1,5 @@
 #include "./raylib/include/raylib.h"
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
@@ -20,11 +21,11 @@ const Color CLR_BLACK   = (Color) { 10, 10, 10, 255 };
 const Color CLR_MIDGRAY = (Color) { 127, 127, 127, 255 };
 
 // Constants
-int GRID_SIZE_W;
-int GRID_SIZE_H;
+int GRID_SIZE_W = 5000;
+int GRID_SIZE_H = 5000;
 const Color             COLOR_BG           = CLR_BLACK;
 const Color             COLOR_TILE_ALIVE   = WHITE;
-const Color             COLOR_TILE_DEAD    = COLOR_BG;
+const Color             COLOR_TILE_DEAD    = GRAY;//COLOR_BG;
 const Color             COLOR_TEXT         = CLR_MIDGRAY;
 const float             CAM_MAX_ZOOM       = 3.15f;
 const float             CAM_MIN_ZOOM       = 0.15f;
@@ -57,28 +58,36 @@ void analyze_cells(cell (*cells)[GRID_SIZE_W]);
 void start_next_generation(cell (*cells)[GRID_SIZE_W]);
 bool fps_filter(unsigned short *fps_counter);
 
+int t = 100;//DEBUG
+
+// MAIN FUNCTION
+// --------------------------------------------------------------------------------
 int main() {
     unsigned short fps_counter = 0;
-
-    // Create the window --------------------------------------------------
     
-        // Set resolution
+    // WINDOW --------------------------------------------------
     const int WIN_W = WIN_RES[2][0];
     const int WIN_H = WIN_RES[2][1];
 
-        // Initialize
     InitWindow(WIN_W, WIN_H, "Game of Life");
     SetTargetFPS(FPS);
 
-    // Create the grid ----------------------------------------------------
-    GRID_SIZE_W = WIN_W / (TILE_SIZE + TILE_GAP);
-    GRID_SIZE_H = WIN_H / (TILE_SIZE + TILE_GAP);
+    // GRID --------------------------------------------------
+    GRID_SIZE_W = t;//WIN_W / (TILE_SIZE + TILE_GAP);
+    GRID_SIZE_H = t;//WIN_H / (TILE_SIZE + TILE_GAP);
+    cell (*cells)[GRID_SIZE_W] = malloc(GRID_SIZE_H * sizeof(*cells));
 
-    cell cells[GRID_SIZE_H][GRID_SIZE_W];
+    if (cells == NULL) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+
+        return 1;
+    }
+
     float pos_x = 0;
     float pos_y = 0;
-    for (int i = 0; i < GRID_SIZE_H; i++, pos_y += TILE_SIZE + TILE_GAP) {
-        for (int y = 0; y < GRID_SIZE_W; y++, pos_x += TILE_SIZE + TILE_GAP) {
+    for (int i = 0; i < GRID_SIZE_H; i++, (pos_y += TILE_SIZE + TILE_GAP)) {
+        for (int y = 0; y < GRID_SIZE_W; y++, (pos_x += TILE_SIZE + TILE_GAP)) {
             cells[i][y].alive        = false;
             cells[i][y].will_survive = false;
             cells[i][y].will_be_born = false;
@@ -90,62 +99,39 @@ int main() {
         pos_x = 0.0;
     }
 
-        // Camera 2D
+    // CAMERA --------------------------------------------------
     Camera2D camera = {0};
     camera.target   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
     camera.offset   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
     // camera.rotation = 0.0f;
     camera.zoom     = 1.0f;
 
-    // Main Loop -----------------------------------------------------
+    // PROGRAM LOOP -----------------------------------------------------
     while (!WindowShouldClose()) {
-    BeginDrawing();
-        ClearBackground(COLOR_BG);
 
-        BeginMode2D(camera);
-            draw_grid(cells);
-
-            // Manual Pause
-            if (IsKeyPressed(KEY_P)) {
-                gof_paused = !gof_paused; 
-                gof_on_hold = gof_paused;
-            }
-            
-            // Pause the life process while "drawing" cells
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                gof_on_hold = true;
-                cell_make_alive(cells, &camera);
-            } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                gof_on_hold = false;
-            }
-            
-            if ((!gof_on_hold && !gof_paused) && fps_filter(&fps_counter)) {
-                analyze_cells(cells);
-                start_next_generation(cells);
-            }
-            
-
-        EndMode2D();
-
-        // Draw UI -----------------------------------------------------
-            // Text Speed
-        char str_speed[15];
-        sprintf(str_speed, "Speed: %.2f%%", (100.0 / speed_reduct_rate));
-        DrawText(str_speed, 10, 35, 20, LIME);
-            // Text Pause
-        if (gof_paused) {
-            DrawText("Paused", (WIN_W / 2 - 40), 10, 20, MAROON);
+    // UPDATE ------------------------------------------------------------
+        // Manual Pause
+        if (IsKeyPressed(KEY_P)) {
+            gof_paused = !gof_paused; 
+            gof_on_hold = gof_paused;
         }
-
-        DrawFPS(10, 10);
-
-        // Camera controls -----------------------------------------------------
         
-            // Camera rotation
-        // if (IsKeyDown(KEY_Q)) camera.rotation--;
-        // else if (IsKeyDown(KEY_E)) camera.rotation++;
+        // GOF SIMULATION --------------------------------------------------
+        // Pause the life process while "drawing" cells
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            gof_on_hold = true;
+            cell_make_alive(cells, &camera);
+        } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            gof_on_hold = false;
+        }
         
-            // Camera movement
+        if ((!gof_on_hold && !gof_paused) && fps_filter(&fps_counter)) {
+            analyze_cells(cells);
+            start_next_generation(cells);
+        }
+            
+        // CAMERA CONTROLS -----------------------------------------------------
+        // Camera movement
         if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
             Vector2 local_mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
 
@@ -153,7 +139,6 @@ int main() {
             if (local_mouse_pos.y < camera.target.y) {
                      camera.target.y -= fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED;
             } else { camera.target.y += fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED; }
-            
             // X Axis
             if (local_mouse_pos.x < camera.target.x) {
                      camera.target.x -= fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED;
@@ -161,30 +146,52 @@ int main() {
 
         }
         
-            // Camera zoom
+        // Camera zoom
         camera.zoom = expf(logf(camera.zoom) + ((float)GetMouseWheelMove() * 0.1f));
         
-            // Reset camera
+        // Reset camera
         if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE))
         {
             camera.target = (Vector2){0.0f, 0.0f};
             // camera.zoom = 1.0f;
-            camera.rotation = 0.0f;
         }
 
-            // Limit zoom
+        // Limit zoom
         if (camera.zoom < 0.15) { camera.zoom = CAM_MIN_ZOOM; }
         if (camera.zoom > 3.00) { camera.zoom = CAM_MAX_ZOOM; }
-        // ---------------------------------------------------------------------
         
         // Game speed controls
         if      (IsKeyPressed(KEY_MINUS)) { speed_reduct_rate++; }
         else if (IsKeyPressed(KEY_EQUAL)) { speed_reduct_rate--; }
 
-    EndDrawing();
+        // DRAW ------------------------------------------------------------
+        BeginDrawing();
+            ClearBackground(COLOR_BG);
+
+            BeginMode2D(camera);
+                draw_grid(cells);
+            EndMode2D();
+
+            // UI -----------------------------------------------------
+            // Text Pause
+            if (gof_paused) {
+                DrawText("Paused", (WIN_W / 2 - 40), 10, 20, MAROON);
+            }
+            // FPS
+            DrawFPS(10, 10);
+            // Text Speed
+            char str_speed[20];
+            sprintf(str_speed, "Speed: %.2f%%", (100.0 / speed_reduct_rate));
+            DrawText(str_speed, 10, 35, 20, LIME);
+            // Grid size
+            char str_grid_size[40];
+            sprintf(str_grid_size, "Grid: %d", (GRID_SIZE_W * GRID_SIZE_H));
+            DrawText(str_grid_size, 10, 55, 20, BLUE);
+
+        EndDrawing();
     }
 
-    CloseWindow(); // Close window and OpenGL context
+    CloseWindow();
     return 0;
 }
 
