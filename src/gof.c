@@ -55,19 +55,18 @@ typedef struct cell {
 // --------------------------------------------------------------------------------
 void build_grid_texture(cell (*cells)[GRID_SIZE_W], RenderTexture2D *grid);
 void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera);
-unsigned long count_alive_cells(const cell (*cells)[GRID_SIZE_W]);
-void analyze_cells(cell (*cells)[GRID_SIZE_W], unsigned long long *count_died_cells, unsigned long long *count_born_cells);
+unsigned long long count_population(const cell (*cells)[GRID_SIZE_W]);
+void analyze_cells(cell (*cells)[GRID_SIZE_W]);
 void start_next_generation(cell (*cells)[GRID_SIZE_W]);
-bool fps_filter(unsigned short *fps_counter);
+bool fps_filter(unsigned short *counter_fps);
 
 int t = 300; //DEBUG
 
 // MAIN FUNCTION
 // --------------------------------------------------------------------------------
 int main() {
-    unsigned short fps_counter = 0;
-    unsigned long long count_died_cells = 0;
-    unsigned long long count_born_cells = 0;
+    unsigned short counter_fps = 0;
+    unsigned long long counter_generations = 0;
     
     // WINDOW --------------------------------------------------
     const int WIN_W = WIN_RES[2][0];
@@ -168,11 +167,17 @@ int main() {
             gof_on_hold = false;
         }
         
-        if ((!gof_on_hold && !gof_paused) && fps_filter(&fps_counter)) {
-            analyze_cells(cells, &count_died_cells, &count_born_cells);
+        if ((!gof_on_hold && !gof_paused) && fps_filter(&counter_fps)) {
+            analyze_cells(cells);
             start_next_generation(cells);
         }
             
+        // COUNTERS --------------------------------------------------------
+        unsigned long long counter_population = count_population(cells);
+        if (counter_population > 0) {
+            counter_generations++;
+        }
+
         // DRAW ------------------------------------------------------------
         BeginDrawing();
             ClearBackground(COLOR_BG);
@@ -194,22 +199,14 @@ int main() {
             char str_speed[20];
             sprintf(str_speed, "Speed: %.2f%%", (100.0 / speed_reduct_rate));
             DrawText(str_speed, 10, 35, 20, LIME);
-            // Grid size
-            char str_grid_size[40];
-            sprintf(str_grid_size, "Grid: %d", (GRID_SIZE_W * GRID_SIZE_H));
-            DrawText(str_grid_size, 10, 55, 20, DARKBLUE);
+            // Generations
+            char str_counter_generations[50];
+            sprintf(str_counter_generations, "Generations: %llu", counter_generations);
+            DrawText(str_counter_generations, 10, 60, 20, DARKBLUE);
             // Alive cells Counter
-            char str_alive_cells[40];
-            sprintf(str_alive_cells, "Alive: %lu", count_alive_cells(cells));
-            DrawText(str_alive_cells, 10, 75, 20, DARKBLUE);
-            // Died cells Counter
-            char str_died_cells[50];
-            sprintf(str_died_cells, "Died: %llu", count_died_cells);
-            DrawText(str_died_cells, 10, 95, 20, DARKBLUE);
-            // Died cells Counter
-            char str_born_cells[50];
-            sprintf(str_born_cells, "Born: %llu", count_born_cells);
-            DrawText(str_born_cells, 10, 115, 20, DARKBLUE);
+            char str_counter_population[50];
+            sprintf(str_counter_population, "Population: %llu", counter_population);
+            DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
 
         EndDrawing();
     }
@@ -244,8 +241,8 @@ void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera) {
     }
 }
 
-unsigned long count_alive_cells(const cell (*cells)[GRID_SIZE_W]) {
-    unsigned long count_current = 0;
+unsigned long long count_population(const cell (*cells)[GRID_SIZE_W]) {
+    unsigned long long count_current = 0;
 
     // Count living cells
     for (int i = 0; i < GRID_SIZE_H; i++) {
@@ -259,7 +256,7 @@ unsigned long count_alive_cells(const cell (*cells)[GRID_SIZE_W]) {
     return count_current;
 }
 
-void analyze_cells(cell (*cells)[GRID_SIZE_W], unsigned long long *count_died_cells, unsigned long long *count_born_cells) {
+void analyze_cells(cell (*cells)[GRID_SIZE_W]) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
             
@@ -285,14 +282,12 @@ void analyze_cells(cell (*cells)[GRID_SIZE_W], unsigned long long *count_died_ce
                     cells[i][y].will_survive = true;
                 } else {
                     cells[i][y].will_survive = false; 
-                    (*count_died_cells)++;
                 }
             }
             
             // Is the alive cell will be born
             if (!cells[i][y].alive && neighbors == 3) {
                 cells[i][y].will_be_born = true;
-                (*count_born_cells)++;
             } else {cells[i][y].will_be_born = false; }
         }
     }
@@ -311,9 +306,9 @@ void start_next_generation(cell (*cells)[GRID_SIZE_W]) {
     }
 }
 
-bool fps_filter(unsigned short *fps_counter) {
-    (*fps_counter)++;
-    if (*fps_counter >= FPS) { *fps_counter = 0; }
-    if (*fps_counter % speed_reduct_rate == 0) { return true; }
+bool fps_filter(unsigned short *counter_fps) {
+    (*counter_fps)++;
+    if (*counter_fps >= FPS) { *counter_fps = 0; }
+    if (*counter_fps % speed_reduct_rate == 0) { return true; }
     return false;
 }
