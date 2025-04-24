@@ -5,9 +5,9 @@ My first GOF. o(*￣︶￣*)o
 
 ## Controls:  
 🖱️  
-LMB - Draw cells  
-RMB - Move camera  
-MMB - Reset camera position  
+LMB   -  Draw cells  
+RMB   -  Move camera  
+MMB   -  Reset camera position  
 ⌨️  
--/= - Speed control  
- P  - Pause
+-/=   -  Speed control  
+P/SPC -  Pause

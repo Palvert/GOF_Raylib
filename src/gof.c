@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <math.h>
 
+#define KILL 0
+#define ADD 1
+
 Vector3 cubePosition = {0};
 
 const int WIN_RES[][2] = {
@@ -54,7 +57,7 @@ typedef struct cell {
 // FUNCTION PROTOTYPES
 // --------------------------------------------------------------------------------
 void build_grid_texture(cell (*cells)[GRID_SIZE_W], RenderTexture2D *grid);
-void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera);
+void cell_add_kill(cell (*cells)[GRID_SIZE_W], Camera2D *camera, int mode);
 unsigned long long count_population(const cell (*cells)[GRID_SIZE_W]);
 void analyze_cells(cell (*cells)[GRID_SIZE_W]);
 void start_next_generation(cell (*cells)[GRID_SIZE_W]);
@@ -67,6 +70,7 @@ int t = 300; //DEBUG
 int main() {
     unsigned short counter_fps = 0;
     unsigned long long counter_generations = 0;
+    bool cell_cursor_mode = ADD;
     
     // WINDOW --------------------------------------------------
     const int WIN_W = WIN_RES[2][0];
@@ -119,7 +123,7 @@ int main() {
 
     // UPDATE ------------------------------------------------------------
         // Manual Pause
-        if (IsKeyPressed(KEY_P)) {
+        if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_SPACE)) {
             gof_paused = !gof_paused; 
             gof_on_hold = gof_paused;
         }
@@ -158,11 +162,14 @@ int main() {
         if      (IsKeyPressed(KEY_MINUS) && speed_reduct_rate < 10) { speed_reduct_rate++; }
         else if (IsKeyPressed(KEY_EQUAL) && speed_reduct_rate > 1) { speed_reduct_rate--; }
 
+        // Cursor mode (cell drawing)
+        if (IsKeyPressed(KEY_M)) { cell_cursor_mode = !cell_cursor_mode; }
+
         // GOF SIMULATION --------------------------------------------------
         // Pause the life process while "drawing" cells
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             gof_on_hold = true;
-            cell_make_alive(cells, &camera);
+            cell_add_kill(cells, &camera, cell_cursor_mode);
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             gof_on_hold = false;
         }
@@ -174,7 +181,7 @@ int main() {
             
         // COUNTERS --------------------------------------------------------
         unsigned long long counter_population = count_population(cells);
-        if (counter_population > 0) {
+        if (counter_population > 0 && !gof_on_hold && !gof_paused) {
             counter_generations++;
         }
 
@@ -207,6 +214,10 @@ int main() {
             char str_counter_population[50];
             sprintf(str_counter_population, "Population: %llu", counter_population);
             DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
+            // Alive cells Counter
+            char str_cell_cursor_mode[20];
+            sprintf(str_cell_cursor_mode, "Cursor mode: %s", (cell_cursor_mode) ? "ADD" : "KILL");
+            DrawText(str_cell_cursor_mode, 10, 105, 20, DARKGRAY);
 
         EndDrawing();
     }
@@ -229,13 +240,13 @@ void build_grid_texture(cell (*cells)[GRID_SIZE_W], RenderTexture2D *grid) {
     EndTextureMode();
 }
 
-void cell_make_alive(cell (*cells)[GRID_SIZE_W], Camera2D *camera) {
+void cell_add_kill(cell (*cells)[GRID_SIZE_W], Camera2D *camera, int mode) {
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
             Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
             bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
             if (tile_clicked) {
-                cells[i][y].alive = true;
+                cells[i][y].alive = mode;
             }
         }
     }
