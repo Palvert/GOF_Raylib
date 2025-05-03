@@ -11,3 +11,6 @@ MMB   -  Reset camera position
 ⌨️  
 -/=   -  Speed control  
 P/SPC -  Pause
+
+## TODO:
+Replace 2d array grid with infinite one.

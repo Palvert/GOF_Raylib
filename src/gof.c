@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
+#include "hash.h"
 
 #define KILL 0
 #define ADD 1

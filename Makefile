@@ -2,7 +2,7 @@
 EXEC = -o out/gof.exe
 
 # Define the source files
-SRC = src/gof.c
+SRC = src/gof.c src/hash.c
 
 # Define any compile-time flags
 FLAGS_H = -Wall -Wextra -pedantic  # Hard flags
