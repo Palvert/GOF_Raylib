@@ -19,8 +19,8 @@ typedef struct htable {
 // FUNCTIONS
 // --------------------------------------------------
 
-unsigned long long hash_function(Vector2 key, unsigned long long size) {
-    unsigned long long index;
-
-    return index;
-}
+// unsigned long long hash_function(Vector2 key, unsigned long long size) {
+//     unsigned long long index;
+//
+//     return index;
+// }
