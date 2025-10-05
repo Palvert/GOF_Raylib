@@ -22,16 +22,27 @@ const int WIN_RES[][2] = {
 // Color palette
 const Color CLR_WHITE   = (Color) { 220, 220, 220, 255 };
 const Color CLR_BLACK   = (Color) { 10, 10, 10, 255 };
+const Color CLR_LIGHTGRAY = (Color) { 200, 200, 200, 255 };
 const Color CLR_MIDGRAY = (Color) { 127, 127, 127, 255 };
 const Color CLR_DEBUG   = (Color) { 15, 15, 15, 255};
 
 // Constants
 int GRID_SIZE_W;
 int GRID_SIZE_H;
+
+
+  // Color theme. Comment out to switch
+  // dark
 const Color             COLOR_BG           = CLR_BLACK;
 const Color             COLOR_TILE_ALIVE   = WHITE;
-const Color             COLOR_TILE_DEAD    = CLR_DEBUG;//COLOR_BG;
+const Color             COLOR_TILE_DEAD    = CLR_DEBUG;//CLR_BLACK;
 const Color             COLOR_TEXT         = CLR_MIDGRAY;
+  // light
+// const Color             COLOR_BG           = CLR_WHITE;
+// const Color             COLOR_TILE_ALIVE   = CLR_BLACK;
+// const Color             COLOR_TILE_DEAD    = CLR_LIGHTGRAY;
+// const Color             COLOR_TEXT         = CLR_MIDGRAY;
+
 const float             CAM_MAX_ZOOM       = 3.15f;
 const float             CAM_MIN_ZOOM       = 0.15f;
 const float             CAM_SPEED          = 10.0f;
@@ -44,27 +55,17 @@ unsigned short          speed_reduct_rate  = 6;
 
 bool gof_on_hold = false;
 bool gof_paused = false;
-int generation = 0;
-int population = 0;
-
-typedef struct cell {
-    bool alive; // status
-    bool will_survive;
-    bool will_be_born;
-    Rectangle tile; // visual
-} cell;
+unsigned long long generation = 0;
+unsigned long long population = 0;
 
 
 // FUNCTION PROTOTYPES
 // --------------------------------------------------------------------------------
-void build_grid_texture(cell (*cells)[GRID_SIZE_W], RenderTexture2D *grid);
-void cell_add_kill(cell (*cells)[GRID_SIZE_W], Camera2D *camera, int mode);
-unsigned long long count_population(const cell (*cells)[GRID_SIZE_W]);
-void analyze_cells(cell (*cells)[GRID_SIZE_W]);
-void start_next_generation(cell (*cells)[GRID_SIZE_W]);
+void build_grid_texture(hashtable *ht, RenderTexture2D *grid);
+void cell_add_kill(hashtable *ht, Camera2D *camera, int mode);
+unsigned long long count_population(hashtable *ht);
+void start_next_generation(hashtable *ht);
 bool fps_filter(unsigned short *counter_fps);
-
-int t = 300; //DEBUG
 
 // MAIN FUNCTION
 // --------------------------------------------------------------------------------
@@ -78,39 +79,20 @@ int main() {
     const int WIN_H = WIN_RES[2][1];
 
     InitWindow(WIN_W, WIN_H, "Game of Life");
-    SetTargetFPS(FPS);
+    // SetTargetFPS(FPS);
 
     // GRID (CELLS DATA) --------------------------------------------------
-    GRID_SIZE_W = t;
-    GRID_SIZE_H = t;
-    cell (*cells)[GRID_SIZE_W] = malloc(GRID_SIZE_H * sizeof(*cells));
+    size_t ht_cells_init_size = 5120000; // DEBUG, replace it somewhere later
+    hashtable *ht_cells = malloc(sizeof(hashtable));
+    if (ht_cells == NULL) { perror("Memory allocation failed! (cells)"); exit(EXIT_FAILURE); }
 
-    if (cells == NULL) {
-        perror("malloc failed");
-        exit(EXIT_FAILURE);
-
-        return 1;
-    }
-
-    float pos_x = 0;
-    float pos_y = 0;
-    for (int i = 0; i < GRID_SIZE_H; i++, (pos_y += TILE_SIZE + TILE_GAP)) {
-        for (int y = 0; y < GRID_SIZE_W; y++, (pos_x += TILE_SIZE + TILE_GAP)) {
-            cells[i][y].alive        = false;
-            cells[i][y].will_survive = false;
-            cells[i][y].will_be_born = false;
-            cells[i][y].tile.x       = pos_x;
-            cells[i][y].tile.y       = pos_y;
-            cells[i][y].tile.height  = TILE_SIZE;
-            cells[i][y].tile.width   = TILE_SIZE;
-        }
-        pos_x = 0.0;
-    }
+    init_hashtable(ht_cells, ht_cells_init_size);
 
     // GRID (GRAPHICS) --------------------------------------------------
     RenderTexture2D grid = LoadRenderTexture(GRID_SIZE_W * (TILE_SIZE + TILE_GAP), 
                                              GRID_SIZE_H * (TILE_SIZE + TILE_GAP));
-    build_grid_texture(cells, &grid);
+    // TODO: REDO
+    // build_grid_texture(ht_cells, &grid);
 
     // CAMERA --------------------------------------------------
     Camera2D camera = {0};
@@ -118,7 +100,7 @@ int main() {
     camera.offset   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
     // camera.rotation = 0.0f;
     camera.zoom     = 1.0f;
-
+    
     // PROGRAM LOOP -----------------------------------------------------
     while (!WindowShouldClose()) {
 
@@ -142,7 +124,6 @@ int main() {
             if (local_mouse_pos.x < camera.target.x) {
                      camera.target.x -= fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED;
             } else { camera.target.x += fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED; }
-
         }
         
         // Camera zoom
@@ -167,33 +148,33 @@ int main() {
         if (IsKeyPressed(KEY_M)) { cell_cursor_mode = !cell_cursor_mode; }
 
         // GOF SIMULATION --------------------------------------------------
+        // TODO: REDO
         // Pause the life process while "drawing" cells
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             gof_on_hold = true;
-            cell_add_kill(cells, &camera, cell_cursor_mode);
+            cell_add_kill(ht_cells, &camera, cell_cursor_mode);
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             gof_on_hold = false;
         }
         
         if ((!gof_on_hold && !gof_paused) && fps_filter(&counter_fps)) {
-            analyze_cells(cells);
-            start_next_generation(cells);
+            // TODO: GOF LOGIC HERE
         }
             
         // COUNTERS --------------------------------------------------------
-        unsigned long long counter_population = count_population(cells);
-        if (counter_population > 0 && !gof_on_hold && !gof_paused) {
-            counter_generations++;
-        }
+        // unsigned long long counter_population = count_population(cells); // TODO: REDO
+        // if (counter_population > 0 && !gof_on_hold && !gof_paused) {
+        //     counter_generations++;
+        // }
 
         // DRAW ------------------------------------------------------------
         BeginDrawing();
             ClearBackground(COLOR_BG);
 
-            build_grid_texture(cells, &grid); 
+            build_grid_texture(ht_cells, &grid); 
 
             BeginMode2D(camera);
-                DrawTexture(grid.texture, 0, 0, WHITE);
+                // DrawTexture(grid.texture, 0, 0, WHITE);
             EndMode2D();
 
             // UI -----------------------------------------------------
@@ -213,8 +194,8 @@ int main() {
             DrawText(str_counter_generations, 10, 60, 20, DARKBLUE);
             // Alive cells Counter
             char str_counter_population[50];
-            sprintf(str_counter_population, "Population: %llu", counter_population);
-            DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
+            // sprintf(str_counter_population, "Population: %llu", counter_population); // TODO: REDO
+            // DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
             // Alive cells Counter
             char str_cell_cursor_mode[20];
             sprintf(str_cell_cursor_mode, "Cursor mode: %s", (cell_cursor_mode) ? "ADD" : "KILL");
@@ -229,93 +210,54 @@ int main() {
 
 // FUNCTION DEFENITIONS
 // --------------------------------------------------------------------------------
-void build_grid_texture(cell (*cells)[GRID_SIZE_W], RenderTexture2D *grid) {
-    // NOTE: texture renders Y-flipped (for some reason), so rect coloring v-reversed
+void build_grid_texture(hashtable *ht, RenderTexture2D *grid) {
     BeginTextureMode(*grid);
-    for (int y = 0, rev_y = (GRID_SIZE_H - 1); y < GRID_SIZE_H; y++, rev_y--) {
-        for (int x = 0; x < GRID_SIZE_W; x++) {
+    for (uint64_t i = 0; i < ht->size; i++) {
+        cell *tmp = ht->cells[i];
+        if (tmp != NULL) {
+            printf("#%lld\n", i);
+            while (tmp != NULL) {
+                Color color = COLOR_TILE_ALIVE;
+                DrawRectangleRec(tmp->tile, color);
+                tmp = tmp->next;
+            }
+        } /*else {
             Color color = (cells[y][x].alive) ? COLOR_TILE_ALIVE : COLOR_TILE_DEAD;
-            DrawRectangleRec(cells[rev_y][x].tile, color);
-        }
+        }*/
     }
     EndTextureMode();
 }
 
-void cell_add_kill(cell (*cells)[GRID_SIZE_W], Camera2D *camera, int mode) {
+// TODO: REDO
+void cell_add_kill(hashtable *ht, Camera2D *camera, int mode) {
+    // TODO: here I need to change it to placing a cell by coordinates
+    // instead of collision with a dead"cell.
+    // But check for collision with cursor, when a cell is alive, to kill it
     for (int i = 0; i < GRID_SIZE_H; i++) {
         for (int y = 0; y < GRID_SIZE_W; y++) {
             Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
-            bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
-            if (tile_clicked) {
-                cells[i][y].alive = mode;
-            }
+            // bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
+            // if (tile_clicked) {
+                // cells[i][y].alive = mode;
+            // }
         }
     }
 }
 
-unsigned long long count_population(const cell (*cells)[GRID_SIZE_W]) {
+// TODO: REDO
+unsigned long long count_population(hashtable *ht) {
     unsigned long long count_current = 0;
 
     // Count living cells
-    for (int i = 0; i < GRID_SIZE_H; i++) {
-        for (int y = 0; y < GRID_SIZE_W; y++) {
-            if (cells[i][y].alive) {
-                count_current++;
-            }
-        }
-    }
+    // for (int i = 0; i < GRID_SIZE_H; i++) {
+    //     for (int y = 0; y < GRID_SIZE_W; y++) {
+    //         if (cells[i][y].alive) {
+    //             count_current++;
+    //         }
+    //     }
+    // }
     
-    return count_current;
-}
-
-void analyze_cells(cell (*cells)[GRID_SIZE_W]) {
-    for (int i = 0; i < GRID_SIZE_H; i++) {
-        for (int y = 0; y < GRID_SIZE_W; y++) {
-            
-            // Count the alive neighbors around the cell
-            int neighbors = 0;
-
-            int iy = i - 1;
-            int ix = y - 1;
-            for (int row = 0; row < 3; row++, iy++, ix = y - 1) {
-                for (int col = 0; col < 3; col++, ix++) {
-                    if (iy >= 0 && iy < GRID_SIZE_H &&
-                        ix >= 0 && ix < GRID_SIZE_W) {
-                        if (cells[iy][ix].alive && (iy != i || ix != y)) {
-                            neighbors++;
-                        }
-                    }
-                }
-            }
-
-            // Is the alive cell surivies
-            if (cells[i][y].alive) {
-                if (neighbors == 2 || neighbors == 3) {
-                    cells[i][y].will_survive = true;
-                } else {
-                    cells[i][y].will_survive = false; 
-                }
-            }
-            
-            // Is the alive cell will be born
-            if (!cells[i][y].alive && neighbors == 3) {
-                cells[i][y].will_be_born = true;
-            } else {cells[i][y].will_be_born = false; }
-        }
-    }
-}
-
-void start_next_generation(cell (*cells)[GRID_SIZE_W]) {
-    for (int i = 0; i < GRID_SIZE_H; i++) {
-        for (int y = 0; y < GRID_SIZE_W; y++) {
-            if (cells[i][y].alive) {
-                cells[i][y].alive = cells[i][y].will_survive;
-            } else {
-                cells[i][y].alive = cells[i][y].will_be_born;
-            }
-            // cells[i][y].alive = cells[i][y].will_survive;
-        }
-    }
+    return 0;//count_current;
 }
 
 bool fps_filter(unsigned short *counter_fps) {
