@@ -20,11 +20,11 @@ const int WIN_RES[][2] = {
 };
 
 // Color palette
-const Color CLR_WHITE   = (Color) { 220, 220, 220, 255 };
-const Color CLR_BLACK   = (Color) { 10, 10, 10, 255 };
-const Color CLR_LIGHTGRAY = (Color) { 200, 200, 200, 255 };
-const Color CLR_MIDGRAY = (Color) { 127, 127, 127, 255 };
-const Color CLR_DEBUG   = (Color) { 15, 15, 15, 255};
+const Color CLR_WHITE     = { 220, 220, 220, 255 };
+const Color CLR_BLACK     = { 10, 10, 10, 255 };
+const Color CLR_LIGHTGRAY = { 200, 200, 200, 255 };
+const Color CLR_MIDGRAY   = { 127, 127, 127, 255 };
+const Color CLR_DEBUG     = { 15, 15, 15, 255};
 
 // Constants
 int GRID_SIZE_W;
@@ -33,22 +33,22 @@ int GRID_SIZE_H;
 
   // Color theme. Comment out to switch
   // dark
-const Color             COLOR_BG           = CLR_BLACK;
-const Color             COLOR_TILE_ALIVE   = WHITE;
-const Color             COLOR_TILE_DEAD    = CLR_DEBUG;//CLR_BLACK;
-const Color             COLOR_TEXT         = CLR_MIDGRAY;
+const Color             COLOR_BG          = CLR_BLACK;
+const Color             COLOR_TILE_ALIVE  = { 255, 255, 255, 255 };
+const Color             COLOR_TILE_DEAD   = CLR_DEBUG;//CLR_BLACK;
+const Color             COLOR_TEXT        = CLR_MIDGRAY;
   // light
-// const Color             COLOR_BG           = CLR_WHITE;
-// const Color             COLOR_TILE_ALIVE   = CLR_BLACK;
-// const Color             COLOR_TILE_DEAD    = CLR_LIGHTGRAY;
-// const Color             COLOR_TEXT         = CLR_MIDGRAY;
+// const Color             COLOR_BG          = CLR_WHITE;
+// const Color             COLOR_TILE_ALIVE  = CLR_BLACK;
+// const Color             COLOR_TILE_DEAD   = CLR_LIGHTGRAY;
+// const Color             COLOR_TEXT        = CLR_MIDGRAY;
 
-const float             CAM_MAX_ZOOM       = 3.15f;
-const float             CAM_MIN_ZOOM       = 0.15f;
-const float             CAM_SPEED          = 10.0f;
-const float             TILE_GAP           = 1.0; // For some reason it doesn't work properly with < 1.0
-const float             TILE_SIZE          = 15.0;
-const unsigned short    FPS                = 60;
+const float             CAM_MAX_ZOOM      = 3.15f;
+const float             CAM_MIN_ZOOM      = 0.15f;
+const float             CAM_SPEED         = 10.0f;
+const float             TILE_GAP          = 1.0; // For some reason it doesn't work properly with < 1.0
+const float             TILE_SIZE         = 15.0;
+const unsigned short    FPS               = 60;
 
 // Variables
 unsigned short          speed_reduct_rate  = 6;
