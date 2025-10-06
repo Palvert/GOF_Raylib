@@ -27,8 +27,7 @@ const Color CLR_MIDGRAY   = { 127, 127, 127, 255 };
 const Color CLR_DEBUG     = { 15, 15, 15, 255};
 
 // Constants
-int GRID_SIZE_W;
-int GRID_SIZE_H;
+const size_t CELLS_IN_GRID = 5120000; // DEBUG, replace it somewhere later
 
 
   // Color theme. Comment out to switch
@@ -82,17 +81,17 @@ int main() {
     // SetTargetFPS(FPS);
 
     // GRID (CELLS DATA) --------------------------------------------------
-    size_t ht_cells_init_size = 5120000; // DEBUG, replace it somewhere later
     hashtable *ht_cells = malloc(sizeof(hashtable));
     if (ht_cells == NULL) { perror("Memory allocation failed! (cells)"); exit(EXIT_FAILURE); }
 
-    init_hashtable(ht_cells, ht_cells_init_size);
+    init_hashtable(ht_cells, CELLS_IN_GRID);
+    ht_insert(ht_cells, create_cell((Vector2){70,70}, TILE_SIZE));
 
     // GRID (GRAPHICS) --------------------------------------------------
-    RenderTexture2D grid = LoadRenderTexture(GRID_SIZE_W * (TILE_SIZE + TILE_GAP), 
-                                             GRID_SIZE_H * (TILE_SIZE + TILE_GAP));
-    // TODO: REDO
-    // build_grid_texture(ht_cells, &grid);
+    RenderTexture2D grid = LoadRenderTexture(((int)sqrt(CELLS_IN_GRID)) * (TILE_SIZE + TILE_GAP), 
+                                             ((int)sqrt(CELLS_IN_GRID)) * (TILE_SIZE + TILE_GAP));
+    // TODO: REDO. Do I even Need it here?
+    build_grid_texture(ht_cells, &grid);
 
     // CAMERA --------------------------------------------------
     Camera2D camera = {0};
@@ -174,7 +173,7 @@ int main() {
             build_grid_texture(ht_cells, &grid); 
 
             BeginMode2D(camera);
-                // DrawTexture(grid.texture, 0, 0, WHITE);
+                DrawTexture(grid.texture, 0, 0, WHITE);
             EndMode2D();
 
             // UI -----------------------------------------------------
@@ -200,6 +199,11 @@ int main() {
             char str_cell_cursor_mode[20];
             sprintf(str_cell_cursor_mode, "Cursor mode: %s", (cell_cursor_mode) ? "ADD" : "KILL");
             DrawText(str_cell_cursor_mode, 10, 105, 20, DARKGRAY);
+            // Cursor Position
+            char str_cursor_pos[100];
+            Vector2 cur_mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
+            sprintf(str_cursor_pos, "Cursor position: (%d:%d)", (int)cur_mouse_pos.x, (int)cur_mouse_pos.y);
+            DrawText(str_cursor_pos, 10, 125, 20, DARKGRAY);
 
         EndDrawing();
     }
@@ -215,15 +219,11 @@ void build_grid_texture(hashtable *ht, RenderTexture2D *grid) {
     for (uint64_t i = 0; i < ht->size; i++) {
         cell *tmp = ht->cells[i];
         if (tmp != NULL) {
-            printf("#%lld\n", i);
             while (tmp != NULL) {
-                Color color = COLOR_TILE_ALIVE;
-                DrawRectangleRec(tmp->tile, color);
+                DrawRectangleRec(tmp->tile, COLOR_TILE_ALIVE);
                 tmp = tmp->next;
             }
-        } /*else {
-            Color color = (cells[y][x].alive) ? COLOR_TILE_ALIVE : COLOR_TILE_DEAD;
-        }*/
+        }
     }
     EndTextureMode();
 }
@@ -233,8 +233,8 @@ void cell_add_kill(hashtable *ht, Camera2D *camera, int mode) {
     // TODO: here I need to change it to placing a cell by coordinates
     // instead of collision with a dead"cell.
     // But check for collision with cursor, when a cell is alive, to kill it
-    for (int i = 0; i < GRID_SIZE_H; i++) {
-        for (int y = 0; y < GRID_SIZE_W; y++) {
+    for (int i = 0; i < ((int)sqrt(CELLS_IN_GRID)); i++) {
+        for (int y = 0; y < ((int)sqrt(CELLS_IN_GRID)); y++) {
             Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
             // bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
             // if (tile_clicked) {
@@ -249,8 +249,8 @@ unsigned long long count_population(hashtable *ht) {
     unsigned long long count_current = 0;
 
     // Count living cells
-    // for (int i = 0; i < GRID_SIZE_H; i++) {
-    //     for (int y = 0; y < GRID_SIZE_W; y++) {
+    // for (int i = 0; i < ((int)sqrt(CELLS_IN_GRID)); i++) {
+    //     for (int y = 0; y < ((int)sqrt(CELLS_IN_GRID)); y++) {
     //         if (cells[i][y].alive) {
     //             count_current++;
     //         }

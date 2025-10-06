@@ -24,12 +24,11 @@ void init_hashtable(hashtable *ht,/* char *name,*/ size_t size) {
 }
 
 
-cell* create_cell(Vector2 position, bool is_alive, float tile_size) {
+cell* create_cell(Vector2 position, float tile_size) {
     cell *new_cell = malloc(sizeof(cell));
     if (new_cell == NULL) { puts("Allocation failed!"); return NULL; }
 
-    new_cell->will_survive = false;
-    new_cell->will_be_born = false;
+    new_cell->will_survive = true; //change to false - default
     new_cell->tile.x       = position.x;
     new_cell->tile.y       = position.y;
     new_cell->tile.height  = tile_size;
