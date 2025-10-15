@@ -7,6 +7,7 @@
 
 #define KILL 0
 #define ADD 1
+#define uplimit(a,b) (((a) < (b)) ? (a) : (b))
 
 Vector3 cubePosition = {0};
 
@@ -36,6 +37,7 @@ const Color             COLOR_BG          = CLR_BLACK;
 const Color             COLOR_TILE_ALIVE  = { 255, 255, 255, 255 };
 const Color             COLOR_TILE_DEAD   = CLR_DEBUG;//CLR_BLACK;
 const Color             COLOR_TEXT        = CLR_MIDGRAY;
+
   // light
 // const Color             COLOR_BG          = CLR_WHITE;
 // const Color             COLOR_TILE_ALIVE  = CLR_BLACK;
@@ -44,7 +46,7 @@ const Color             COLOR_TEXT        = CLR_MIDGRAY;
 
 const float             CAM_MAX_ZOOM      = 3.15f;
 const float             CAM_MIN_ZOOM      = 0.15f;
-const float             CAM_SPEED         = 10.0f;
+const float             CAM_SPD_MODIF     = 10.0f;
 const float             TILE_GAP          = 1.0; // For some reason it doesn't work properly with < 1.0
 const float             TILE_SIZE         = 15.0;
 const unsigned short    FPS               = 60;
@@ -60,7 +62,7 @@ unsigned long long population = 0;
 
 // FUNCTION PROTOTYPES
 // --------------------------------------------------------------------------------
-void build_grid_texture(hashtable *ht, RenderTexture2D *grid);
+void draw_grid_cells(hashtable *ht);
 void cell_add_kill(hashtable *ht, Camera2D *camera, int mode);
 unsigned long long count_population(hashtable *ht);
 void start_next_generation(hashtable *ht);
@@ -86,12 +88,7 @@ int main() {
 
     init_hashtable(ht_cells, CELLS_IN_GRID);
     ht_insert(ht_cells, create_cell((Vector2){70,70}, TILE_SIZE));
-
-    // GRID (GRAPHICS) --------------------------------------------------
-    RenderTexture2D grid = LoadRenderTexture(((int)sqrt(CELLS_IN_GRID)) * (TILE_SIZE + TILE_GAP), 
-                                             ((int)sqrt(CELLS_IN_GRID)) * (TILE_SIZE + TILE_GAP));
-    // TODO: REDO. Do I even Need it here?
-    build_grid_texture(ht_cells, &grid);
+    ht_insert(ht_cells, create_cell((Vector2){70,70}, TILE_SIZE));
 
     // CAMERA --------------------------------------------------
     Camera2D camera = {0};
@@ -113,16 +110,17 @@ int main() {
         // CAMERA CONTROLS -----------------------------------------------------
         // Camera movement
         if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+            const int CAM_SPD_LIMIT = 100;
             Vector2 local_mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
 
             // Y Axis
             if (local_mouse_pos.y < camera.target.y) {
-                     camera.target.y -= fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED;
-            } else { camera.target.y += fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPEED; }
+                     camera.target.y -= uplimit(fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPD_MODIF, CAM_SPD_LIMIT);
+            } else { camera.target.y += uplimit(fabsf(camera.target.y - local_mouse_pos.y) / CAM_SPD_MODIF, CAM_SPD_LIMIT); }
             // X Axis
             if (local_mouse_pos.x < camera.target.x) {
-                     camera.target.x -= fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED;
-            } else { camera.target.x += fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPEED; }
+                     camera.target.x -= uplimit(fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPD_MODIF, CAM_SPD_LIMIT);
+            } else { camera.target.x += uplimit(fabsf(camera.target.x - local_mouse_pos.x) / CAM_SPD_MODIF, CAM_SPD_LIMIT); }
         }
         
         // Camera zoom
@@ -170,10 +168,9 @@ int main() {
         BeginDrawing();
             ClearBackground(COLOR_BG);
 
-            build_grid_texture(ht_cells, &grid); 
 
             BeginMode2D(camera);
-                DrawTexture(grid.texture, 0, 0, WHITE);
+                draw_grid_cells(ht_cells); 
             EndMode2D();
 
             // UI -----------------------------------------------------
@@ -214,8 +211,8 @@ int main() {
 
 // FUNCTION DEFENITIONS
 // --------------------------------------------------------------------------------
-void build_grid_texture(hashtable *ht, RenderTexture2D *grid) {
-    BeginTextureMode(*grid);
+void draw_grid_cells(hashtable *ht) {
+    DrawRectangleRec((Rectangle){0.0f, 0.0f, 5000, 5000}, CLR_DEBUG); // DEBUG background fill
     for (uint64_t i = 0; i < ht->size; i++) {
         cell *tmp = ht->cells[i];
         if (tmp != NULL) {
@@ -225,7 +222,6 @@ void build_grid_texture(hashtable *ht, RenderTexture2D *grid) {
             }
         }
     }
-    EndTextureMode();
 }
 
 // TODO: REDO
