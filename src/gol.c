@@ -28,28 +28,27 @@ const Color CLR_MIDGRAY   = { 127, 127, 127, 255 };
 const Color CLR_DEBUG     = { 15, 15, 15, 255};
 
 // Constants
-const size_t CELLS_IN_GRID = 5120000; // DEBUG, replace it somewhere later
-
+const size_t CELLS_IN_GRID = 5120000;
 
   // Color theme. Comment out to switch
   // dark
-const Color             COLOR_BG          = CLR_BLACK;
-const Color             COLOR_TILE_ALIVE  = { 255, 255, 255, 255 };
-const Color             COLOR_TILE_DEAD   = CLR_DEBUG;//CLR_BLACK;
-const Color             COLOR_TEXT        = CLR_MIDGRAY;
+const Color          COLOR_BG          = CLR_BLACK;
+const Color          COLOR_TILE_ALIVE  = CLR_WHITE;
+const Color          COLOR_TEXT        = CLR_MIDGRAY;
 
   // light
-// const Color             COLOR_BG          = CLR_WHITE;
-// const Color             COLOR_TILE_ALIVE  = CLR_BLACK;
-// const Color             COLOR_TILE_DEAD   = CLR_LIGHTGRAY;
-// const Color             COLOR_TEXT        = CLR_MIDGRAY;
+// const Color          COLOR_BG          = CLR_WHITE;
+// const Color          COLOR_TILE_ALIVE  = CLR_BLACK;
+// const Color          COLOR_TILE_DEAD   = CLR_LIGHTGRAY;
+// const Color          COLOR_TEXT        = CLR_MIDGRAY;
 
-const float             CAM_MAX_ZOOM      = 3.15f;
-const float             CAM_MIN_ZOOM      = 0.15f;
-const float             CAM_SPD_MODIF     = 10.0f;
-const float             TILE_GAP          = 1.0; // For some reason it doesn't work properly with < 1.0
-const float             TILE_SIZE         = 15.0;
-const unsigned short    FPS               = 60;
+const float          CAM_ZOOM_DEF      = 5.0f;  // zoom default
+const float          CAM_ZOOM_MAX      = 10.0f; // zoom in
+const float          CAM_ZOOM_MIN      = 1.0f;  // zoom out
+const float          CAM_SPD_MODIF     = 10.0f;
+const float          TILE_GAP          = 0.5;
+const float          TILE_SIZE         = 4.0;
+const unsigned short FPS               = 60;
 
 // Variables
 unsigned short          speed_reduct_rate  = 6;
@@ -63,7 +62,7 @@ unsigned long long population = 0;
 // FUNCTION PROTOTYPES
 // --------------------------------------------------------------------------------
 void draw_grid_cells(hashtable *ht);
-void cell_add_kill(hashtable *ht, Camera2D *camera, int mode);
+void cell_add_kill(hashtable *ht, Camera2D *camera, bool cursor_mode);
 unsigned long long count_population(hashtable *ht);
 void start_next_generation(hashtable *ht);
 bool fps_filter(unsigned short *counter_fps);
@@ -87,20 +86,16 @@ int main() {
     if (ht_cells == NULL) { perror("Memory allocation failed! (cells)"); exit(EXIT_FAILURE); }
 
     init_hashtable(ht_cells, CELLS_IN_GRID);
-    ht_insert(ht_cells, create_cell((Vector2){70,70}, TILE_SIZE));
-    ht_insert(ht_cells, create_cell((Vector2){70,70}, TILE_SIZE));
 
     // CAMERA --------------------------------------------------
     Camera2D camera = {0};
-    camera.target   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
-    camera.offset   = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
+    camera.target = (Vector2){0.0f, 0.0f};
+    camera.offset = (Vector2){ WIN_W / 2.0f, WIN_H / 2.0f };
     // camera.rotation = 0.0f;
-    camera.zoom     = 1.0f;
+    camera.zoom   = CAM_ZOOM_DEF;
     
-    // PROGRAM LOOP -----------------------------------------------------
+    // PROGRAM LOOP (UPDATE -----------------------------------------------------
     while (!WindowShouldClose()) {
-
-    // UPDATE ------------------------------------------------------------
         // Manual Pause
         if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_SPACE)) {
             gof_paused = !gof_paused; 
@@ -134,8 +129,8 @@ int main() {
         }
 
         // Limit zoom
-        if (camera.zoom < 0.15) { camera.zoom = CAM_MIN_ZOOM; }
-        if (camera.zoom > 3.00) { camera.zoom = CAM_MAX_ZOOM; }
+        if (camera.zoom < CAM_ZOOM_MIN) { camera.zoom = CAM_ZOOM_MIN; }
+        if (camera.zoom > CAM_ZOOM_MAX) { camera.zoom = CAM_ZOOM_MAX; }
         
         // Game speed controls
         if      (IsKeyPressed(KEY_MINUS) && speed_reduct_rate < 10) { speed_reduct_rate++; }
@@ -145,7 +140,6 @@ int main() {
         if (IsKeyPressed(KEY_M)) { cell_cursor_mode = !cell_cursor_mode; }
 
         // GOF SIMULATION --------------------------------------------------
-        // TODO: REDO
         // Pause the life process while "drawing" cells
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             gof_on_hold = true;
@@ -159,10 +153,10 @@ int main() {
         }
             
         // COUNTERS --------------------------------------------------------
-        // unsigned long long counter_population = count_population(cells); // TODO: REDO
-        // if (counter_population > 0 && !gof_on_hold && !gof_paused) {
-        //     counter_generations++;
-        // }
+        uint64_t counter_population = count_population(ht_cells);
+        if (counter_population > 0 && !gof_on_hold && !gof_paused) {
+            counter_generations++;
+        }
 
         // DRAW ------------------------------------------------------------
         BeginDrawing();
@@ -190,8 +184,8 @@ int main() {
             DrawText(str_counter_generations, 10, 60, 20, DARKBLUE);
             // Alive cells Counter
             char str_counter_population[50];
-            // sprintf(str_counter_population, "Population: %llu", counter_population); // TODO: REDO
-            // DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
+            sprintf(str_counter_population, "Population: %llu", counter_population);
+            DrawText(str_counter_population, 10, 85, 20, DARKBLUE);
             // Alive cells Counter
             char str_cell_cursor_mode[20];
             sprintf(str_cell_cursor_mode, "Cursor mode: %s", (cell_cursor_mode) ? "ADD" : "KILL");
@@ -201,6 +195,10 @@ int main() {
             Vector2 cur_mouse_pos = GetScreenToWorld2D(GetMousePosition(), camera);
             sprintf(str_cursor_pos, "Cursor position: (%d:%d)", (int)cur_mouse_pos.x, (int)cur_mouse_pos.y);
             DrawText(str_cursor_pos, 10, 125, 20, DARKGRAY);
+            // DEBUG camera zoom
+            char dbg_cam_zoom[100];
+            snprintf(dbg_cam_zoom, 100, "Cam.Zoom: %f", camera.zoom);
+            DrawText(dbg_cam_zoom, 10, 225, 20, GREEN);
 
         EndDrawing();
     }
@@ -212,48 +210,58 @@ int main() {
 // FUNCTION DEFENITIONS
 // --------------------------------------------------------------------------------
 void draw_grid_cells(hashtable *ht) {
-    DrawRectangleRec((Rectangle){0.0f, 0.0f, 5000, 5000}, CLR_DEBUG); // DEBUG background fill
     for (uint64_t i = 0; i < ht->size; i++) {
         cell *tmp = ht->cells[i];
         if (tmp != NULL) {
             while (tmp != NULL) {
-                DrawRectangleRec(tmp->tile, COLOR_TILE_ALIVE);
+                Rectangle cell_inner_clr = {0};
+                cell_inner_clr.x      = tmp->tile.x      + TILE_GAP;
+                cell_inner_clr.y      = tmp->tile.y      + TILE_GAP;
+                cell_inner_clr.width  = tmp->tile.width  - (TILE_GAP * 2.0f);
+                cell_inner_clr.height = tmp->tile.height - (TILE_GAP * 2.0f);
+
+                DrawRectangleRec(tmp->tile, RED);
+                DrawRectangleRec(cell_inner_clr, COLOR_TILE_ALIVE);
                 tmp = tmp->next;
             }
         }
     }
 }
 
-// TODO: REDO
-void cell_add_kill(hashtable *ht, Camera2D *camera, int mode) {
-    // TODO: here I need to change it to placing a cell by coordinates
-    // instead of collision with a dead"cell.
-    // But check for collision with cursor, when a cell is alive, to kill it
-    for (int i = 0; i < ((int)sqrt(CELLS_IN_GRID)); i++) {
-        for (int y = 0; y < ((int)sqrt(CELLS_IN_GRID)); y++) {
-            Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
-            // bool tile_clicked = CheckCollisionPointRec(mouse_pos_cam_relative, cells[i][y].tile);
-            // if (tile_clicked) {
-                // cells[i][y].alive = mode;
-            // }
+void cell_add_kill(hashtable *ht, Camera2D *camera, bool cursor_mode) {
+    Vector2 mouse_pos_cam_relative = GetScreenToWorld2D(GetMousePosition(), *camera);
+
+    // Check if no cell has the same position
+    bool pos_is_free = true;
+    for (uint64_t i = 0; i < ht->size; i++) {
+        cell *tmp = ht->cells[i];
+        if (tmp != NULL && (tmp->tile.x == mouse_pos_cam_relative.x && tmp->tile.y == mouse_pos_cam_relative.y)) {
+            pos_is_free = false;
+            break;
         }
+    }
+
+    if (pos_is_free && cursor_mode) {
+        ht_insert(ht, create_cell(mouse_pos_cam_relative, TILE_SIZE));
+    } else if (!pos_is_free && !cursor_mode) {
+        ht_delete(ht, mouse_pos_cam_relative);
     }
 }
 
-// TODO: REDO
-unsigned long long count_population(hashtable *ht) {
-    unsigned long long count_current = 0;
+uint64_t count_population(hashtable *ht) {
+    uint64_t count = 0;
 
-    // Count living cells
-    // for (int i = 0; i < ((int)sqrt(CELLS_IN_GRID)); i++) {
-    //     for (int y = 0; y < ((int)sqrt(CELLS_IN_GRID)); y++) {
-    //         if (cells[i][y].alive) {
-    //             count_current++;
-    //         }
-    //     }
-    // }
-    
-    return 0;//count_current;
+    for (uint64_t i = 0; i < ht->size; i++) {
+        cell *tmp = ht->cells[i];
+        if (tmp != NULL) {
+            while (tmp != NULL) {
+                count++;
+                tmp = tmp->next;
+            }
+        }
+    }
+
+    return count;
 }
 
 bool fps_filter(unsigned short *counter_fps) {

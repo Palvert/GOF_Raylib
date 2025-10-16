@@ -48,7 +48,6 @@ uint32_t hash(Vector2 position, uint64_t ht_size) {
     _itoa(abs((int)position.x), coords_str_x, 10);
     _itoa(abs((int)position.y), coords_str_y, 10);
     snprintf(coords_str, 200, "%s%s", coords_str_x, coords_str_y);
-    printf("new hash:%s\n", coords_str);// DEBUG
     hash = atoi(coords_str);
 
     return hash % ht_size;
